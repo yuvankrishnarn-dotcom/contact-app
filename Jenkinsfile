@@ -6,7 +6,12 @@ pipeline {
     TAG = "${BUILD_NUMBER}"
   }
 
+  options {
+    skipDefaultCheckout()
+  }
+
   stages {
+
     stage("Docker Login") {
       steps {
         withCredentials([
@@ -16,8 +21,8 @@ pipeline {
             passwordVariable: 'DOCKER_PASS'
           )
         ]) {
-           sh '''
-           echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+          sh '''
+            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
           '''
         }
       }
@@ -25,39 +30,51 @@ pipeline {
 
     stage("Build & Push Backend") {
       steps {
-        sh """
-        docker build -t $REGISTRY/contact-backend:$TAG backend
-        docker push $REGISTRY/contact-backend:$TAG
-        """
+        sh '''
+          docker build -t ${REGISTRY}/contact-backend:${TAG} backend
+          docker push ${REGISTRY}/contact-backend:${TAG}
+        '''
       }
     }
 
     stage("Build & Push Frontend") {
       steps {
-        sh """
-        docker build -t $REGISTRY/contact-frontend:$TAG frontend
-        docker push $REGISTRY/contact-frontend:$TAG
-        """
+        sh '''
+          docker build -t ${REGISTRY}/contact-frontend:${TAG} frontend
+          docker push ${REGISTRY}/contact-frontend:${TAG}
+        '''
       }
     }
 
     stage("Update GitOps Repo") {
       steps {
-        withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
-          sh """
-          git clone https://$GITHUB_TOKEN@github.com/yuvankrishnarn-dotcom/contact-gitops.git
-          cd contact-gitops/apps/contact
+        withCredentials([
+          string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')
+        ]) {
+          sh '''
+            rm -rf contact-gitops
 
-          sed -i 's|contact-backend:.*|contact-backend:$TAG|' backend.yaml
-          sed -i 's|contact-frontend:.*|contact-frontend:$TAG|' frontend.yaml
+            git clone https://github.com/yuvankrishnarn-dotcom/contact-gitops.git
+            cd contact-gitops/apps/contact
 
-          git config user.email "ci@jenkins"
-          git config user.name "jenkins"
-          git commit -am "Deploy version $TAG"
-          git push
-          """
+            sed -i "s|contact-backend:.*|contact-backend:${TAG}|" backend.yaml
+            sed -i "s|contact-frontend:.*|contact-frontend:${TAG}|" frontend.yaml
+
+            git config user.email "ci@jenkins"
+            git config user.name "jenkins"
+
+            git add .
+            git commit -m "Deploy version ${TAG}" || echo "No changes to commit"
+            git push https://${GITHUB_TOKEN}@github.com/yuvankrishnarn-dotcom/contact-gitops.git
+          '''
         }
       }
+    }
+  }
+
+  post {
+    always {
+      cleanWs()
     }
   }
 }
