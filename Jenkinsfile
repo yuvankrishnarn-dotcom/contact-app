@@ -54,17 +54,18 @@ pipeline {
           sh '''
             rm -rf contact-gitops
 
-            git clone https://github.com/yuvankrishnarn-dotcom/contact-gitops.git
+            git clone https://${GITHUB_TOKEN}@github.com/yuvankrishnarn-dotcom/contact-gitops.git
             cd contact-gitops/apps/contact
 
             sed -i "s|contact-backend:.*|contact-backend:${TAG}|" backend.yaml
             sed -i "s|contact-frontend:.*|contact-frontend:${TAG}|" frontend.yaml
 
-            git config user.email "ci@jenkins"
             git config user.name "jenkins"
+            git config user.email "ci@jenkins"
 
             git add .
             git commit -m "Deploy version ${TAG}" || echo "No changes to commit"
+
             git push https://${GITHUB_TOKEN}@github.com/yuvankrishnarn-dotcom/contact-gitops.git
           '''
         }
