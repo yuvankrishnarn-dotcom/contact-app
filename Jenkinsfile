@@ -12,6 +12,15 @@ pipeline {
 
   stages {
 
+    stage("Checkout App Repo") {
+      steps {
+        sh '''
+          rm -rf contact-app
+          git clone https://github.com/yuvankrishnarn-dotcom/contact-app.git
+        '''
+      }
+    }
+
     stage("Docker Login") {
       steps {
         withCredentials([
@@ -31,7 +40,7 @@ pipeline {
     stage("Build & Push Backend") {
       steps {
         sh '''
-          docker build -t ${REGISTRY}/contact-backend:${TAG} backend
+          docker build -t ${REGISTRY}/contact-backend:${TAG} contact-app/backend
           docker push ${REGISTRY}/contact-backend:${TAG}
         '''
       }
@@ -40,7 +49,7 @@ pipeline {
     stage("Build & Push Frontend") {
       steps {
         sh '''
-          docker build -t ${REGISTRY}/contact-frontend:${TAG} frontend
+          docker build -t ${REGISTRY}/contact-frontend:${TAG} contact-app/frontend
           docker push ${REGISTRY}/contact-frontend:${TAG}
         '''
       }
@@ -65,7 +74,6 @@ pipeline {
 
             git add .
             git commit -m "Deploy version ${TAG}" || echo "No changes to commit"
-
             git push https://${GITHUB_TOKEN}@github.com/yuvankrishnarn-dotcom/contact-gitops.git
           '''
         }
